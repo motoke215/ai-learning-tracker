@@ -440,7 +440,12 @@ function IframeViewer({ url, title, onClose, theme }: { url: string; title: stri
         </div>
       </div>
       {/* iframe */}
-      <iframe src={url} className="flex-1 w-full border-0" title={title} sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
+      <iframe
+        src={`/api/proxy?url=${encodeURIComponent(url)}`}
+        className="flex-1 w-full border-0"
+        title={title}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-forms"
+      />
     </motion.div>
   );
 }
