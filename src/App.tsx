@@ -122,26 +122,26 @@ const RESOURCES: Resource[] = [
 
 // ── AI Masters (20位) - Verified AI/ML YouTube Channels ─────────────
 const AI_MASTERS = [
-  { id: '1', name: 'Andrej Karpathy', twitter: 'karpathy', youtube: 'UCXUPKJO5MZQN11PqgIvyuvQ', avatarColor: 'from-orange-500 to-red-600' },
-  { id: '2', name: 'Lex Fridman', twitter: 'lexfridman', youtube: 'UCSHZKyawb77ixDdsGog4iWA', avatarColor: 'from-gray-600 to-gray-900' },
-  { id: '3', name: '3Blue1Brown', twitter: '3blue1brown', youtube: 'UCYO_jab_esuFRV4b17AJtAw', avatarColor: 'from-amber-500 to-orange-600' },
-  { id: '4', name: 'Two Minute Papers', twitter: 'karoly_zsolnai', youtube: 'UCbfYPyITQ-7l4upoX8nvctg', avatarColor: 'from-blue-500 to-cyan-600' },
-  { id: '5', name: 'sentdex', twitter: 'sentdex', youtube: 'UCfzlCWGWYyIQ0aLC5w48gBQ', avatarColor: 'from-green-500 to-emerald-600' },
-  { id: '6', name: 'Siraj Raval', twitter: 'sirajraval', youtube: 'UCWN3xxRkmTPmbKwht9FuE5A', avatarColor: 'from-red-500 to-rose-600' },
-  { id: '7', name: 'Andrew Ng', twitter: 'AndrewYNg', youtube: 'UC0nw93YVMDAuABkfDexpF2Q', avatarColor: 'from-blue-600 to-indigo-700' },
-  { id: '8', name: 'StatQuest', twitter: 'JoshStarmer', youtube: 'UCtYLUTtgS3k1Fg4y5tAhLbw', avatarColor: 'from-purple-500 to-indigo-600' },
-  { id: '9', name: 'Yannic Kilcher', twitter: 'ykilcher', youtube: 'UCZHmQk67mSJgfCCTn7xBfew', avatarColor: 'from-pink-500 to-rose-600' },
-  { id: '10', name: 'AI Explained', twitter: '', youtube: 'UCNJ1Ymd5yFuUPtn21xtRbbw', avatarColor: 'from-teal-500 to-cyan-600' },
-  { id: '11', name: 'David Shapiro', twitter: 'davidshapiro71', youtube: 'UCvKRFNawVcuz4b9ihUTApCg', avatarColor: 'from-cyan-500 to-blue-600' },
-  { id: '12', name: 'Hugging Face', twitter: 'huggingface', youtube: 'UCHlNU7kIZhRgSbhHvFoy72w', avatarColor: 'from-yellow-500 to-orange-600' },
-  { id: '13', name: 'DeepLearning.AI', twitter: 'deeplearningai_', youtube: 'UCcIXc5mJsHVYTZR1maL5l9w', avatarColor: 'from-emerald-600 to-teal-700' },
-  { id: '14', name: 'Google DeepMind', twitter: 'GoogleDeepMind', youtube: 'UCP7jMXSY2xbc3KCAE0MHQ-A', avatarColor: 'from-blue-600 to-indigo-800' },
-  { id: '15', name: 'Cognitive Revolution', twitter: '', youtube: 'UCjNRVMBVI30Sak_p6HRWhIA', avatarColor: 'from-indigo-500 to-purple-600' },
-  { id: '16', name: 'Editminds AI', twitter: 'editminds', youtube: 'UCv7abH3RYaI77SF-2Av_5GA', avatarColor: 'from-violet-500 to-purple-600' },
-  { id: '17', name: 'AI Jason', twitter: 'aijasonz', youtube: 'UCrXSVX9a1mj8l0CMLwKgMVw', avatarColor: 'from-lime-500 to-green-600' },
-  { id: '18', name: 'Dr. Alan D. Thompson', twitter: '', youtube: 'UC00DrQVoCf9Liv4D0KV0rGw', avatarColor: 'from-yellow-500 to-amber-600' },
-  { id: '19', name: 'Yann LeCun', twitter: 'ylecun', youtube: 'UCMU7l2bIv6MXlgJR3-E33Dw', avatarColor: 'from-sky-500 to-blue-600' },
-  { id: '20', name: 'Sebastian Raschka', twitter: 'rasbt', youtube: 'UC_CzsS7UTjcxJ-xXp1ftxtA', avatarColor: 'from-orange-600 to-red-700' },
+  { id: '1', name: 'Andrej Karpathy', cnName: '安德烈·卡尔帕西', twitter: 'karpathy', youtube: 'UCXUPKJO5MZQN11PqgIvyuvQ', avatarColor: 'from-orange-500 to-red-600' },
+  { id: '2', name: 'Lex Fridman', cnName: '莱克斯·弗里德曼', twitter: 'lexfridman', youtube: 'UCSHZKyawb77ixDdsGog4iWA', avatarColor: 'from-gray-600 to-gray-900' },
+  { id: '3', name: '3Blue1Brown', cnName: '3Blue1Brown数学', twitter: '3blue1brown', youtube: 'UCYO_jab_esuFRV4b17AJtAw', avatarColor: 'from-amber-500 to-orange-600' },
+  { id: '4', name: 'Two Minute Papers', cnName: '两分钟论文', twitter: 'karoly_zsolnai', youtube: 'UCbfYPyITQ-7l4upoX8nvctg', avatarColor: 'from-blue-500 to-cyan-600' },
+  { id: '5', name: 'sentdex', cnName: 'sentdex编程', twitter: 'sentdex', youtube: 'UCfzlCWGWYyIQ0aLC5w48gBQ', avatarColor: 'from-green-500 to-emerald-600' },
+  { id: '6', name: 'Siraj Raval', cnName: '锡拉杰·拉瓦尔', twitter: 'sirajraval', youtube: 'UCWN3xxRkmTPmbKwht9FuE5A', avatarColor: 'from-red-500 to-rose-600' },
+  { id: '7', name: 'Andrew Ng', cnName: '吴恩达', twitter: 'AndrewYNg', youtube: 'UC0nw93YVMDAuABkfDexpF2Q', avatarColor: 'from-blue-600 to-indigo-700' },
+  { id: '8', name: 'StatQuest', cnName: '统计quest', twitter: 'JoshStarmer', youtube: 'UCtYLUTtgS3k1Fg4y5tAhLbw', avatarColor: 'from-purple-500 to-indigo-600' },
+  { id: '9', name: 'Yannic Kilcher', cnName: '亚尼克·基尔彻', twitter: 'ykilcher', youtube: 'UCZHmQk67mSJgfCCTn7xBfew', avatarColor: 'from-pink-500 to-rose-600' },
+  { id: '10', name: 'AI Explained', cnName: 'AI释义', twitter: '', youtube: 'UCNJ1Ymd5yFuUPtn21xtRbbw', avatarColor: 'from-teal-500 to-cyan-600' },
+  { id: '11', name: 'David Shapiro', cnName: '大卫·夏皮罗', twitter: 'davidshapiro71', youtube: 'UCvKRFNawVcuz4b9ihUTApCg', avatarColor: 'from-cyan-500 to-blue-600' },
+  { id: '12', name: 'Hugging Face', cnName: '抱脸网', twitter: 'huggingface', youtube: 'UCHlNU7kIZhRgSbhHvFoy72w', avatarColor: 'from-yellow-500 to-orange-600' },
+  { id: '13', name: 'DeepLearning.AI', cnName: '深度学习AI', twitter: 'deeplearningai_', youtube: 'UCcIXc5mJsHVYTZR1maL5l9w', avatarColor: 'from-emerald-600 to-teal-700' },
+  { id: '14', name: 'Google DeepMind', cnName: '谷歌DeepMind', twitter: 'GoogleDeepMind', youtube: 'UCP7jMXSY2xbc3KCAE0MHQ-A', avatarColor: 'from-blue-600 to-indigo-800' },
+  { id: '15', name: 'Cognitive Revolution', cnName: '认知革命', twitter: '', youtube: 'UCjNRVMBVI30Sak_p6HRWhIA', avatarColor: 'from-indigo-500 to-purple-600' },
+  { id: '16', name: 'Editminds AI', cnName: '编辑思维AI', twitter: 'editminds', youtube: 'UCv7abH3RYaI77SF-2Av_5GA', avatarColor: 'from-violet-500 to-purple-600' },
+  { id: '17', name: 'AI Jason', cnName: 'AI杰森', twitter: 'aijasonz', youtube: 'UCrXSVX9a1mj8l0CMLwKgMVw', avatarColor: 'from-lime-500 to-green-600' },
+  { id: '18', name: 'Dr. Alan D. Thompson', cnName: '艾伦·汤普森博士', twitter: '', youtube: 'UC00DrQVoCf9Liv4D0KV0rGw', avatarColor: 'from-yellow-500 to-amber-600' },
+  { id: '19', name: 'Yann LeCun', cnName: '杨立昆', twitter: 'ylecun', youtube: 'UCMU7l2bIv6MXlgJR3-E33Dw', avatarColor: 'from-sky-500 to-blue-600' },
+  { id: '20', name: 'Sebastian Raschka', cnName: '塞巴斯蒂安·拉什卡', twitter: 'rasbt', youtube: 'UC_CzsS7UTjcxJ-xXp1ftxtA', avatarColor: 'from-orange-600 to-red-700' },
 ];
 
 // ── API Functions ──────────────────────────────────────────────────────
@@ -613,7 +613,7 @@ function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVid
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'videos' | 'posts'>('videos');
 
-  const filtered = masters.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filtered = masters.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()) || m.cnName.includes(searchQuery));
   const selectedMaster = masters.find(m => m.id === selectedMasterId);
   const cardBg = theme === 'dark' ? 'bg-gray-900' : 'bg-white';
   const cardBorder = theme === 'dark' ? 'border-gray-800' : 'border-gray-200';
@@ -645,11 +645,8 @@ function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVid
                 {master.name[0]}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate">{master.name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {master.youtube && <Youtube size={12} className="text-red-400" />}
-                  {master.twitter && <Twitter size={12} className="text-sky-400" />}
-                </div>
+                <p className="font-semibold text-sm truncate">{master.cnName}</p>
+                <p className={cn('text-xs truncate', muted)}>{master.name}</p>
               </div>
             </div>
           ))}
@@ -666,7 +663,8 @@ function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVid
                 {selectedMaster.name[0]}
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-bold">{selectedMaster.name}</h3>
+                <h3 className="text-2xl font-bold">{selectedMaster.cnName}</h3>
+                <p className={cn('text-sm', muted)}>{selectedMaster.name}</p>
                 <div className="flex items-center gap-3 mt-1">
                   {selectedMaster.twitter && (
                     <a href={`https://twitter.com/${selectedMaster.twitter}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-sky-600 hover:underline">
