@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Home, BookOpen, Search, Users, TrendingUp, Code2, Database,
+  Home, BookOpen, Search, Users, TrendingUp, Code2,
   ChevronRight, ChevronDown, Flame, Zap, X, Plus, ExternalLink,
   Play, Youtube, Twitter, RefreshCw, Loader2, AlertCircle, Rss,
   FileText, Star, Clock, CheckCircle2, Sparkles, Globe, Filter,
+  Share2, ArrowLeft, PlayCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -13,8 +14,6 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// ── Config ──────────────────────────────────────────────────────────────
-
 // ── Types ──────────────────────────────────────────────────────────────
 interface Resource {
   id: string;
@@ -23,7 +22,6 @@ interface Resource {
   stage: string;
   category: string;
   links: { url: string; type: string }[];
-  completed?: boolean;
   status?: 'not_started' | 'in_progress' | 'completed';
 }
 
@@ -57,6 +55,12 @@ interface Stage {
   icon: string;
 }
 
+interface SearchResult {
+  title: string;
+  url: string;
+  platform: string;
+}
+
 // ── Learning Stages ────────────────────────────────────────────────────
 const LEARNING_STAGES: Stage[] = [
   { name: '第一阶段：Python编程基础', color: '#3498db', icon: '📘' },
@@ -67,7 +71,7 @@ const LEARNING_STAGES: Stage[] = [
   { name: '第六阶段：项目实战', color: '#27ae60', icon: '🚀' },
 ];
 
-// ── 38 Learning Resources (parsed from markdown) ──────────────────────
+// ── 38 Learning Resources ─────────────────────────────────────────────
 const RESOURCES: Resource[] = [
   // 第一阶段：Python编程基础
   { id: '1', name: '黑马程序员Python教程', description: '系统全面，实战项目多，约100小时', stage: '第一阶段：Python编程基础', category: 'Python入门', links: [{ url: 'https://www.bilibili.com/video/BV1ex411x7Em', type: 'bilibili' }], status: 'not_started' },
@@ -153,7 +157,6 @@ const AI_MASTERS = [
 // ── API Functions ──────────────────────────────────────────────────────
 async function fetchYouTubeVideos(channelId: string): Promise<YoutubeVideo[]> {
   if (!channelId) return [];
-
   try {
     const response = await fetch(`/api/youtube?channelId=${channelId}`);
     if (!response.ok) return [];
@@ -166,26 +169,21 @@ async function fetchYouTubeVideos(channelId: string): Promise<YoutubeVideo[]> {
 
 async function fetchXRss(handle: string): Promise<XPost[]> {
   try {
-    const response = await fetch(`https://nitter.net/${handle}/rss`);
+    const response = await fetch(`/api/x?handle=${handle}`);
     if (!response.ok) return [];
+    const data = await response.json();
+    return data.posts || [];
+  } catch {
+    return [];
+  }
+}
 
-    const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, 'text/xml');
-    const items = doc.querySelectorAll('item');
-
-    return Array.from(items).slice(0, 5).map((item) => {
-      const title = item.querySelector('title')?.textContent || '';
-      const link = item.querySelector('link')?.textContent || '';
-      const pubDate = item.querySelector('pubDate')?.textContent || '';
-      const content = title.replace(new RegExp(`^@${handle}\\s*[-:]?\\s*`), '');
-
-      return {
-        title: content,
-        link: link || `https://twitter.com/${handle}`,
-        pubDate: pubDate ? new Date(pubDate).toLocaleDateString('zh-CN') : '',
-      };
-    });
+async function performSearch(query: string): Promise<SearchResult[]> {
+  try {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data;
   } catch {
     return [];
   }
@@ -193,11 +191,11 @@ async function fetchXRss(handle: string): Promise<XPost[]> {
 
 // ── App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState<'dashboard' | 'resources' | 'masters' | 'progress'>('dashboard');
+  const [page, setPage] = useState<'dashboard' | 'resources' | 'masters' | 'progress' | 'search'>('dashboard');
   const [resources, setResources] = useState<Resource[]>(RESOURCES);
   const [masters, setMasters] = useState<AIMaster[]>(AI_MASTERS.map(m => ({ ...m, videos: [], posts: [] })));
   const [selectedStage, setSelectedStage] = useState<string | null>(null);
-  const [expandedMasterId, setExpandedMasterId] = useState<string | null>(null);
+  const [selectedMasterId, setSelectedMasterId] = useState<string | null>(null);
   const [playingVideo, setPlayingVideo] = useState<{ id: string; title: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'not_started' | 'in_progress' | 'completed'>('all');
@@ -213,10 +211,20 @@ export default function App() {
     }));
   };
 
-  // Fetch master data when expanded
+  // Share to NotebookLM
+  const shareToNotebookLM = (resource: Resource) => {
+    const urls = resource.links.map(l => l.url).join('\n');
+    navigator.clipboard.writeText(urls);
+    window.open('https://notebooklm.google.com/', '_blank');
+  };
+
+  // Fetch master data when selected
   const fetchMasterData = useCallback(async (masterId: string) => {
     const master = AI_MASTERS.find(m => m.id === masterId);
     if (!master) return;
+
+    const existing = masters.find(m => m.id === masterId);
+    if (existing && existing.videos.length > 0) return;
 
     setMasters(prev => prev.map(m => m.id === masterId ? { ...m, loading: true } : m));
 
@@ -226,16 +234,13 @@ export default function App() {
     ]);
 
     setMasters(prev => prev.map(m => m.id === masterId ? { ...m, videos, posts, loading: false } : m));
-  }, []);
+  }, [masters]);
 
   useEffect(() => {
-    if (expandedMasterId) {
-      const master = masters.find(m => m.id === expandedMasterId);
-      if (master && master.videos.length === 0 && master.posts.length === 0) {
-        fetchMasterData(expandedMasterId);
-      }
+    if (selectedMasterId) {
+      fetchMasterData(selectedMasterId);
     }
-  }, [expandedMasterId]);
+  }, [selectedMasterId]);
 
   // Stats
   const stats = {
@@ -267,6 +272,7 @@ export default function App() {
           <NavItem icon={<BookOpen size={20} />} label="资源库" active={page === 'resources'} onClick={() => setPage('resources')} badge={resources.length} />
           <NavItem icon={<Users size={20} />} label="AI大神" active={page === 'masters'} onClick={() => setPage('masters')} badge={AI_MASTERS.length} />
           <NavItem icon={<TrendingUp size={20} />} label="学习进度" active={page === 'progress'} onClick={() => setPage('progress')} />
+          <NavItem icon={<Search size={20} />} label="AI搜索" active={page === 'search'} onClick={() => setPage('search')} />
         </nav>
 
         {/* Progress */}
@@ -285,14 +291,7 @@ export default function App() {
       {/* Main */}
       <main className="lg:ml-64 p-6">
         <AnimatePresence mode="wait">
-          {page === 'dashboard' && (
-            <DashboardPage
-              key="dashboard"
-              stats={stats}
-              resources={resources}
-              onNavigate={setPage}
-            />
-          )}
+          {page === 'dashboard' && <DashboardPage key="dashboard" stats={stats} resources={resources} onNavigate={setPage} />}
           {page === 'resources' && (
             <ResourcesPage
               key="resources"
@@ -305,20 +304,20 @@ export default function App() {
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
               onToggleStatus={toggleResourceStatus}
+              onShareToNotebookLM={shareToNotebookLM}
             />
           )}
           {page === 'masters' && (
             <MastersPage
               key="masters"
               masters={masters}
-              expandedMasterId={expandedMasterId}
-              setExpandedMasterId={setExpandedMasterId}
+              selectedMasterId={selectedMasterId}
+              setSelectedMasterId={setSelectedMasterId}
               onPlayVideo={setPlayingVideo}
             />
           )}
-          {page === 'progress' && (
-            <ProgressPage key="progress" stats={stats} resources={resources} stages={LEARNING_STAGES} />
-          )}
+          {page === 'progress' && <ProgressPage key="progress" stats={stats} resources={resources} stages={LEARNING_STAGES} />}
+          {page === 'search' && <SearchPage key="search" />}
         </AnimatePresence>
       </main>
 
@@ -397,7 +396,7 @@ function DashboardPage({ stats, resources, onNavigate }: any) {
 }
 
 // ── Resources Page ─────────────────────────────────────────────────────
-function ResourcesPage({ stages, resources, selectedStage, setSelectedStage, searchQuery, setSearchQuery, filterStatus, setFilterStatus, onToggleStatus }: any) {
+function ResourcesPage({ stages, resources, selectedStage, setSelectedStage, searchQuery, setSearchQuery, filterStatus, setFilterStatus, onToggleStatus, onShareToNotebookLM }: any) {
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
       <header className="flex justify-between items-center mb-8">
@@ -438,14 +437,14 @@ function ResourcesPage({ stages, resources, selectedStage, setSelectedStage, sea
       {/* Resource List */}
       <div className="space-y-4">
         {resources.map(resource => (
-          <ResourceCard key={resource.id} resource={resource} onToggle={() => onToggleStatus(resource.id)} />
+          <ResourceCard key={resource.id} resource={resource} onToggle={() => onToggleStatus(resource.id)} onShareToNotebookLM={() => onShareToNotebookLM(resource)} />
         ))}
       </div>
     </motion.div>
   );
 }
 
-function ResourceCard({ resource, onToggle }: { resource: Resource; onToggle: () => void }) {
+function ResourceCard({ resource, onToggle, onShareToNotebookLM }: { resource: Resource; onToggle: () => void; onShareToNotebookLM: () => void }) {
   const statusColors = {
     not_started: 'bg-gray-100 text-gray-600',
     in_progress: 'bg-amber-100 text-amber-700',
@@ -472,7 +471,12 @@ function ResourceCard({ resource, onToggle }: { resource: Resource; onToggle: ()
           </div>
           <h3 className="font-bold text-lg mb-1">{resource.name}</h3>
           <p className="text-gray-500 text-sm mb-4">{resource.description}</p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* NotebookLM Share Button */}
+            <button onClick={onShareToNotebookLM} className="inline-flex items-center gap-1 text-sm bg-green-500/10 text-green-600 hover:bg-green-500/20 px-3 py-1.5 rounded-lg transition-colors">
+              <Share2 size={14} /> NotebookLM
+            </button>
+            {/* Resource Links */}
             {resource.links.map((link, idx) => (
               <a key={idx} href={link.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline">
                 {typeIcons[link.type] || '🔗'} {link.type}
@@ -488,103 +492,218 @@ function ResourceCard({ resource, onToggle }: { resource: Resource; onToggle: ()
   );
 }
 
-// ── Masters Page ─────────────────────────────────────────────────────
-function MastersPage({ masters, expandedMasterId, setExpandedMasterId, onPlayVideo }: any) {
+// ── Masters Page: Left sidebar + Right panel ─────────────────────────
+function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVideo }: any) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'videos' | 'posts'>('videos');
 
   const filtered = masters.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const selectedMaster = masters.find(m => m.id === selectedMasterId);
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-      <header className="flex justify-between items-center mb-8">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Flame className="text-orange-500" size={24} />
-            <h2 className="text-3xl font-bold">AI大神</h2>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="flex gap-6 h-[calc(100vh-60px)]">
+      {/* Left: Master List */}
+      <div className="w-80 bg-white rounded-2xl border border-gray-200 p-5 flex flex-col">
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Flame className="text-orange-500" size={20} />
+            <h2 className="text-xl font-bold">AI大神</h2>
           </div>
-          <p className="text-gray-500">关注20位AI领域顶尖专家，获取最新动态</p>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input type="text" placeholder="搜索大神..." className="w-full pl-9 pr-3 py-2 bg-gray-50 border-none rounded-xl text-sm" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+          </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input type="text" placeholder="搜索大神..." className="pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl w-64" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar">
+          {filtered.map(master => (
+            <div
+              key={master.id}
+              onClick={() => setSelectedMasterId(master.id)}
+              className={cn('flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all', selectedMasterId === master.id ? 'bg-indigo-50 border border-indigo-200' : 'hover:bg-gray-50')}
+            >
+              <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm', master.avatarColor)}>
+                {master.name[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate">{master.name}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  {master.youtube && <Youtube size={12} className="text-red-400" />}
+                  {master.twitter && <Twitter size={12} className="text-sky-400" />}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </header>
+      </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map(master => (
-          <MasterCard key={master.id} master={master} isExpanded={expandedMasterId === master.id} onToggle={() => setExpandedMasterId(expandedMasterId === master.id ? null : master.id)} onPlayVideo={onPlayVideo} />
-        ))}
+      {/* Right: Master Detail */}
+      <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-6 flex flex-col overflow-hidden">
+        {selectedMaster ? (
+          <>
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className={cn('w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-xl', selectedMaster.avatarColor)}>
+                {selectedMaster.name[0]}
+              </div>
+              <div className="flex-1">
+                <h3 className="text-2xl font-bold">{selectedMaster.name}</h3>
+                <div className="flex items-center gap-3 mt-1">
+                  {selectedMaster.twitter && (
+                    <a href={`https://twitter.com/${selectedMaster.twitter}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-sky-600 hover:underline">
+                      <Twitter size={14} /> @{selectedMaster.twitter}
+                    </a>
+                  )}
+                  {selectedMaster.youtube && (
+                    <a href={`https://www.youtube.com/channel/${selectedMaster.youtube}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-red-600 hover:underline">
+                      <Youtube size={14} /> YouTube
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-4 border-b border-gray-100">
+              <button onClick={() => setActiveTab('videos')} className={cn('px-4 py-2 text-sm font-medium border-b-2 transition-colors', activeTab === 'videos' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700')}>
+                <div className="flex items-center gap-2"><Youtube size={14} /> 最新视频</div>
+              </button>
+              <button onClick={() => setActiveTab('posts')} className={cn('px-4 py-2 text-sm font-medium border-b-2 transition-colors', activeTab === 'posts' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700')}>
+                <div className="flex items-center gap-2"><Twitter size={14} /> 最新推文</div>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto">
+              {selectedMaster.loading ? (
+                <div className="flex items-center gap-2 text-gray-500 py-8 justify-center">
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>加载中...</span>
+                </div>
+              ) : activeTab === 'videos' ? (
+                selectedMaster.videos.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedMaster.videos.map(video => (
+                      <div key={video.id} onClick={() => onPlayVideo({ id: video.id, title: video.title })} className="cursor-pointer rounded-xl overflow-hidden border border-gray-100 hover:border-indigo-300 hover:shadow-md transition-all">
+                        <img src={video.thumbnail} alt={video.title} className="w-full aspect-video object-cover" />
+                        <div className="p-3">
+                          <p className="text-sm font-medium line-clamp-2">{video.title}</p>
+                          <p className="text-xs text-gray-400 mt-1">{video.publishedAt}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                    <PlayCircle size={40} className="mb-3 opacity-50" />
+                    <p>暂无视频</p>
+                  </div>
+                )
+              ) : (
+                selectedMaster.posts.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedMaster.posts.map((post: any, idx: number) => (
+                      <a key={idx} href={post.link} target="_blank" rel="noopener noreferrer" className="block bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors">
+                        <p className="text-sm text-gray-800 line-clamp-3">{post.title}</p>
+                        <p className="text-xs text-gray-400 mt-2">{post.pubDate}</p>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-48 text-gray-400">
+                    <Twitter size={40} className="mb-3 opacity-50" />
+                    <p>暂无推文</p>
+                  </div>
+                )
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+            <Users size={48} className="mb-4 opacity-30" />
+            <p className="text-lg">请在左侧选择一位大神</p>
+            <p className="text-sm mt-1">查看他的最新视频和推文</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );
 }
 
-function MasterCard({ master, isExpanded, onToggle, onPlayVideo }: any) {
+// ── Search Page with Tavily ─────────────────────────────────────────────
+function SearchPage({}: any) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setIsSearching(true);
+    try {
+      const data = await performSearch(query);
+      setResults(data);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    if (platform === 'bilibili') return '🎬';
+    if (platform === 'youtube') return '▶️';
+    if (platform === 'github') return '💻';
+    if (platform === 'twitter') return '🐦';
+    return '🌐';
+  };
+
   return (
-    <motion.div layout className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="p-5 cursor-pointer hover:bg-gray-50 transition-colors" onClick={onToggle}>
-        <div className="flex items-center gap-3">
-          <div className={cn('w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold', master.avatarColor)}>
-            {master.name[0]}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold truncate">{master.name}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              {master.youtube && <Youtube size={14} className="text-red-500" />}
-              {master.twitter && <Twitter size={14} className="text-sky-500" />}
-            </div>
-          </div>
-          <ChevronDown size={20} className={cn('text-gray-400 transition-transform', isExpanded && 'rotate-180')} />
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
+      <header className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Sparkles className="text-indigo-600" size={28} />
+          <h2 className="text-3xl font-bold">AI搜索</h2>
+        </div>
+        <p className="text-gray-500">使用AI搜索全网最新资讯</p>
+      </header>
+
+      {/* Search Box */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="搜索任何AI相关内容..."
+            className="flex-1 px-4 py-3 bg-gray-50 border-none rounded-xl text-lg"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSearch()}
+          />
+          <button onClick={handleSearch} disabled={isSearching} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+            {isSearching ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+            搜索
+          </button>
         </div>
       </div>
 
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden border-t border-gray-100">
-            <div className="p-4">
-              {master.loading ? (
-                <div className="flex items-center gap-2 text-gray-500 py-4">
-                  <Loader2 size={20} className="animate-spin" />
-                  <span className="text-sm">加载中...</span>
-                </div>
-              ) : (
-                <>
-                  {master.videos.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <Youtube size={14} className="text-red-500" /> 最新视频
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {master.videos.slice(0, 4).map(video => (
-                          <div key={video.id} className="cursor-pointer rounded-lg overflow-hidden border border-gray-100 hover:border-indigo-200 transition-colors" onClick={() => onPlayVideo({ id: video.id, title: video.title })}>
-                            <img src={video.thumbnail} alt={video.title} className="w-full aspect-video object-cover" />
-                            <p className="text-xs p-2 truncate">{video.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {master.posts.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <Twitter size={14} className="text-sky-500" /> 最新推文
-                      </h4>
-                      <div className="space-y-2">
-                        {master.posts.slice(0, 3).map((post: any, idx: number) => (
-                          <a key={idx} href={post.link} target="_blank" rel="noopener noreferrer" className="block text-sm text-gray-600 bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors">
-                            <p className="line-clamp-2">{post.title}</p>
-                            <p className="text-xs text-gray-400 mt-1">{post.pubDate}</p>
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Results */}
+      {results.length > 0 ? (
+        <div className="space-y-3">
+          {results.map((result, idx) => (
+            <a key={idx} href={result.url} target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-lg transition-all">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{getPlatformIcon(result.platform)}</span>
+                <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-600">{result.platform}</span>
+              </div>
+              <h3 className="font-bold text-lg mb-1 text-indigo-600 hover:underline">{result.title}</h3>
+              <p className="text-sm text-gray-500 line-clamp-1">{result.url}</p>
+            </a>
+          ))}
+        </div>
+      ) : (
+        !isSearching && (
+          <div className="text-center py-16 text-gray-400">
+            <Search size={48} className="mx-auto mb-4 opacity-30" />
+            <p>输入关键词开始搜索</p>
+          </div>
+        )
+      )}
     </motion.div>
   );
 }
@@ -716,12 +835,12 @@ function NavItem({ icon, label, active = false, onClick, badge }: { icon: React.
   );
 }
 
-function StatCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+function StatCard({ label, value, icon }: any) {
   return (
-    <div className="bg-white p-6 rounded-2xl border border-gray-200">
-      <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">{icon}</div>
-      <p className="text-gray-500 text-sm mb-1">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
+    <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-indigo-50">{icon}</div>
+      <p className="text-3xl font-bold">{value}</p>
+      <p className="text-gray-500 text-sm">{label}</p>
     </div>
   );
 }
