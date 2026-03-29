@@ -4,7 +4,7 @@ import {
   ChevronRight, ChevronDown, Flame, Zap, X, Plus, ExternalLink,
   Play, Youtube, Twitter, RefreshCw, Loader2, AlertCircle, Rss,
   FileText, Star, Clock, CheckCircle2, Sparkles, Globe, Filter,
-  Share2, ArrowLeft, PlayCircle, Sun, Moon,
+  Share2, ArrowLeft, PlayCircle, Sun, Moon, Languages, Copy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -176,6 +176,18 @@ async function performSearch(query: string): Promise<SearchResult[]> {
     return data;
   } catch {
     return [];
+  }
+}
+
+async function translateText(text: string, fromLang = 'en', toLang = 'zh'): Promise<string> {
+  if (!text.trim()) return '';
+  try {
+    const response = await fetch(`/api/translate?text=${encodeURIComponent(text.substring(0, 2000))}&from=${fromLang}&to=${toLang}`);
+    if (!response.ok) return text;
+    const data = await response.json();
+    return data.translatedText || text;
+  } catch {
+    return text;
   }
 }
 
@@ -377,6 +389,25 @@ export default function App() {
 
 // ── Iframe Viewer ──────────────────────────────────────────────────────
 function IframeViewer({ url, title, onClose, theme }: { url: string; title: string; onClose: () => void; theme: Theme }) {
+  const [translating, setTranslating] = useState(false);
+  const [translatedTitle, setTranslatedTitle] = useState('');
+
+  const handleTranslate = async () => {
+    if (translatedTitle) {
+      setTranslatedTitle('');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const result = await translateText(title);
+      setTranslatedTitle(result);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const displayTitle = translatedTitle || title;
+
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -389,9 +420,17 @@ function IframeViewer({ url, title, onClose, theme }: { url: string; title: stri
           <button onClick={onClose} className={cn('p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors', theme === 'dark' ? 'text-gray-400' : 'text-gray-500')}>
             <ArrowLeft size={18} />
           </button>
-          <p className="text-sm font-medium line-clamp-1 flex-1 mr-4">{title}</p>
+          <p className="text-sm font-medium line-clamp-1 flex-1 mr-4">{displayTitle}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleTranslate}
+            disabled={translating}
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all', theme === 'dark' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700', translatedTitle && 'opacity-80')}
+          >
+            {translating ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
+            {translatedTitle ? '显示原文' : '翻译标题'}
+          </button>
           <a href={url} target="_blank" rel="noopener noreferrer" className={cn('p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors', theme === 'dark' ? 'text-gray-400' : 'text-gray-500')} title="外部打开">
             <ExternalLink size={16} />
           </a>
@@ -664,13 +703,14 @@ function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVid
                 selectedMaster.videos.length > 0 ? (
                   <div className="grid grid-cols-2 gap-4">
                     {selectedMaster.videos.map(video => (
-                      <div key={video.id} onClick={() => onPlayVideo({ id: video.id, title: video.title })} className={cn('cursor-pointer rounded-xl overflow-hidden border hover:shadow-md transition-all', theme === 'dark' ? 'border-gray-800 hover:border-indigo-700' : 'border-gray-100 hover:border-indigo-300')}>
-                        <img src={video.thumbnail} alt={video.title} className="w-full aspect-video object-cover" />
-                        <div className="p-3">
-                          <p className="text-sm font-medium line-clamp-2">{video.title}</p>
-                          <p className={cn('text-xs mt-1', muted)}>{video.publishedAt}</p>
+                      <div key={video.id} onClick={() => onPlayVideo({ id: video.id, title: video.title })} className={cn('cursor-pointer rounded-xl overflow-hidden border hover:shadow-md transition-all group', theme === 'dark' ? 'border-gray-800 hover:border-indigo-700' : 'border-gray-100 hover:border-indigo-300')}>
+                        <div className="relative">
+                          <img src={video.thumbnail} alt={video.title} className="w-full aspect-video object-cover" />
+                          <div className={cn('absolute bottom-0 left-0 right-0 px-3 py-2 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1', theme === 'dark' ? 'bg-gray-900/90 text-white' : 'bg-white/90 text-gray-800')}>
+                            <Languages size={12} /> 翻译
+                          </div>
                         </div>
-                      </div>
+                        <VideoCardContent video={video} theme={theme} />}
                     ))}
                   </div>
                 ) : (
@@ -771,23 +811,7 @@ function SearchPage({ onOpenResult, theme }: any) {
       {results.length > 0 ? (
         <div className="space-y-3">
           {results.map((result, idx) => (
-            <div
-              key={idx}
-              className={cn(cardBg, 'rounded-2xl border p-5 hover:shadow-lg transition-all cursor-pointer', cardBorder)}
-              onClick={() => onOpenResult(result.url, result.title)}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{getPlatformIcon(result.platform)}</span>
-                <span className={cn('text-xs px-2 py-0.5 rounded', theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600')}>{result.platform}</span>
-              </div>
-              <h3 className="font-bold text-lg mb-1 text-indigo-600 hover:underline">{result.title}</h3>
-              <div className="flex items-center gap-3">
-                <p className={cn('text-sm line-clamp-1', muted)}>{result.url}</p>
-                <button className={cn('flex items-center gap-1 text-xs text-indigo-600 hover:underline ml-auto')}>
-                  <Globe size={12} /> 内部打开
-                </button>
-              </div>
-            </div>
+            <SearchResultCard key={idx} result={result} onOpen={onOpenResult} theme={theme} />
           ))}
         </div>
       ) : (
@@ -931,6 +955,104 @@ function NavItem({ icon, label, active = false, onClick, badge, theme }: { icon:
       <div className="flex items-center gap-3">{icon}<span className="font-medium">{label}</span></div>
       {badge !== undefined && <span className={cn('text-xs font-bold px-2 py-0.5 rounded-full', active ? 'bg-white/20 text-white' : theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-indigo-100 text-indigo-600')}>{badge}</span>}
     </button>
+  );
+}
+
+function SearchResultCard({ result, onOpen, theme }: { result: SearchResult; onOpen: (url: string, title: string) => void; theme: Theme }) {
+  const [translatedTitle, setTranslatedTitle] = useState('');
+  const [translating, setTranslating] = useState(false);
+  const muted = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+  const cardBg = theme === 'dark' ? 'bg-gray-900' : 'bg-white';
+  const cardBorder = theme === 'dark' ? 'border-gray-800' : 'border-gray-200';
+
+  const handleTranslate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (translatedTitle) {
+      setTranslatedTitle('');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const result_t = await translateText(result.title);
+      setTranslatedTitle(result_t);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  const getPlatformIcon = (platform: string) => {
+    if (platform === 'bilibili') return '🎬';
+    if (platform === 'youtube') return '▶️';
+    if (platform === 'github') return '💻';
+    if (platform === 'twitter') return '🐦';
+    return '🌐';
+  };
+
+  return (
+    <div
+      className={cn(cardBg, 'rounded-2xl border p-5 hover:shadow-lg transition-all cursor-pointer group', cardBorder)}
+      onClick={() => onOpen(result.url, translatedTitle || result.title)}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">{getPlatformIcon(result.platform)}</span>
+        <span className={cn('text-xs px-2 py-0.5 rounded', theme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600')}>{result.platform}</span>
+        <button
+          onClick={handleTranslate}
+          disabled={translating}
+          className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-md ml-auto transition-all', theme === 'dark' ? 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100', translatedTitle && 'opacity-60')}
+        >
+          {translating ? <Loader2 size={10} className="animate-spin" /> : <Languages size={10} />}
+          {translatedTitle ? '原文' : '翻译标题'}
+        </button>
+      </div>
+      <h3 className="font-bold text-lg mb-1 text-indigo-600">{translatedTitle || result.title}</h3>
+      <div className="flex items-center gap-3">
+        <p className={cn('text-sm line-clamp-1', muted)}>{result.url}</p>
+        <span className={cn('flex items-center gap-1 text-xs ml-auto', theme === 'dark' ? 'text-gray-500' : 'text-gray-400')}>
+          <Globe size={12} /> 内部打开
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VideoCardContent({ video, theme }: { video: YoutubeVideo; theme: Theme }) {
+  const [translatedTitle, setTranslatedTitle] = useState('');
+  const [translating, setTranslating] = useState(false);
+  const muted = theme === 'dark' ? 'text-gray-400' : 'text-gray-500';
+
+  const handleTranslate = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (translatedTitle) {
+      setTranslatedTitle('');
+      return;
+    }
+    setTranslating(true);
+    try {
+      const result = await translateText(video.title);
+      setTranslatedTitle(result);
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  return (
+    <div className="p-3">
+      <p className="text-sm font-medium line-clamp-2">
+        {translatedTitle || video.title}
+      </p>
+      <div className="flex items-center justify-between mt-1">
+        <p className={cn('text-xs', muted)}>{video.publishedAt}</p>
+        <button
+          onClick={handleTranslate}
+          disabled={translating}
+          className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-all', theme === 'dark' ? 'bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100', translatedTitle && 'opacity-60')}
+        >
+          {translating ? <Loader2 size={10} className="animate-spin" /> : <Languages size={10} />}
+          {translatedTitle ? '原文' : '翻译'}
+        </button>
+      </div>
+    </div>
   );
 }
 
