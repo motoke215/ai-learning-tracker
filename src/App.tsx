@@ -14,8 +14,6 @@ function cn(...inputs: ClassValue[]) {
 }
 
 // ── Config ──────────────────────────────────────────────────────────────
-const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || '';
-const TAVILY_API_KEY = import.meta.env.VITE_TAVILY_API_KEY || '';
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface Resource {
@@ -154,19 +152,13 @@ const AI_MASTERS = [
 
 // ── API Functions ──────────────────────────────────────────────────────
 async function fetchYouTubeVideos(channelId: string): Promise<YoutubeVideo[]> {
-  if (!YOUTUBE_API_KEY || !channelId) return [];
+  if (!channelId) return [];
 
   try {
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${channelId}&part=snippet,id&order=date&maxResults=6&type=video`
-    );
+    const response = await fetch(`/api/youtube?channelId=${channelId}`);
+    if (!response.ok) return [];
     const data = await response.json();
-    return (data.items || []).map((item: any) => ({
-      id: item.id.videoId || item.id,
-      title: item.snippet.title,
-      thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || '',
-      publishedAt: new Date(item.snippet.publishedAt).toLocaleDateString('zh-CN'),
-    }));
+    return data.videos || [];
   } catch {
     return [];
   }
