@@ -708,7 +708,8 @@ function MastersPage({ masters, selectedMasterId, setSelectedMasterId, onPlayVid
                             <Languages size={12} /> 翻译
                           </div>
                         </div>
-                        <VideoCardContent video={video} theme={theme} />}
+                        <VideoCardContent video={video} theme={theme} />
+                      </div>
                     ))}
                   </div>
                 ) : (
