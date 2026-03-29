@@ -120,28 +120,28 @@ const RESOURCES: Resource[] = [
   { id: '38', name: 'Datawhale', description: '数据科学学习社区', stage: '第三阶段：机器学习', category: '移动学习', links: [{ url: 'https://www.datawhale.cn', type: 'docs' }], status: 'not_started' },
 ];
 
-// ── AI Masters (20位) ─────────────────────────────────────────────────
+// ── AI Masters (20位) with verified YouTube Channel IDs ──────────────
 const AI_MASTERS = [
-  { id: '1', name: 'Andrej Karpathy', twitter: 'karpathy', youtube: 'UCXUPKJOoM5L6O9S5JFZIkQw', avatarColor: 'from-orange-500 to-red-600' },
-  { id: '2', name: 'Andrew Ng', twitter: 'AndrewYng', youtube: '', avatarColor: 'from-blue-600 to-indigo-700' },
-  { id: '3', name: 'Yann LeCun', twitter: 'ylecun', youtube: '', avatarColor: 'from-blue-700 to-cyan-800' },
-  { id: '4', name: 'Lex Fridman', twitter: 'lexfridman', youtube: 'UCSHZxQ5L7IuvZQqS9T9Carg', avatarColor: 'from-gray-600 to-gray-900' },
+  { id: '1', name: 'Andrej Karpathy', twitter: 'karpathy', youtube: 'UCe4jUOmQPKMDvOkzJpDfMRQ', avatarColor: 'from-orange-500 to-red-600' },
+  { id: '2', name: 'Andrew Ng', twitter: 'AndrewYng', youtube: 'UC0nw93YVMDAuABkfDexpF2Q', avatarColor: 'from-blue-600 to-indigo-700' },
+  { id: '3', name: 'Yann LeCun', twitter: 'ylecun', youtube: 'UCMU7l2bIv6MXlgJR3-E33Dw', avatarColor: 'from-blue-700 to-cyan-800' },
+  { id: '4', name: 'Lex Fridman', twitter: 'lexfridman', youtube: 'UCSHZKyawb77ixDdsGog4iWA', avatarColor: 'from-gray-600 to-gray-900' },
   { id: '5', name: 'Ilya Sutskever', twitter: 'ilyasut', youtube: '', avatarColor: 'from-emerald-600 to-teal-700' },
-  { id: '6', name: 'Sebastian Raschka', twitter: 'rasbt', youtube: 'UCXUPKJOoM5L6O9S5JFZIkQw', avatarColor: 'from-indigo-600 to-blue-700' },
-  { id: '7', name: 'Jim Fan', twitter: 'DrJimFan', youtube: '', avatarColor: 'from-green-600 to-emerald-700' },
-  { id: '8', name: 'Jeremy Howard', twitter: 'jeremyhoward', youtube: 'UC7-c08hMUjF-4Bj9U9SjQSQ', avatarColor: 'from-green-700 to-teal-800' },
-  { id: '9', name: 'Matt Wolfe', twitter: 'mattwolfe_', youtube: 'UCKl4w_DVJr-Q6KMhxvZHUpg', avatarColor: 'from-yellow-600 to-orange-600' },
-  { id: '10', name: 'Two Minute Papers', twitter: 'karoly_zsolnai', youtube: 'UCbfYPyIT5T46Z2R卫国自选区', avatarColor: 'from-blue-500 to-cyan-600' },
-  { id: '11', name: 'Rowan Cheung', twitter: 'rowancheung', youtube: '', avatarColor: 'from-purple-600 to-pink-600' },
-  { id: '12', name: 'Wes Roth', twitter: 'WesRothMoney', youtube: 'UCcD8wn4K1cXoO0NlA0V6H4w', avatarColor: 'from-teal-600 to-cyan-700' },
-  { id: '13', name: 'Allie K. Miller', twitter: 'alliekmiller', youtube: '', avatarColor: 'from-pink-600 to-rose-700' },
-  { id: '14', name: 'Dr. Alan Thompson', twitter: '', youtube: 'UCZM8wN-uLbgz0t3tnuM47Rw', avatarColor: 'from-purple-700 to-indigo-800' },
-  { id: '15', name: 'Logan Kilpatrick', twitter: 'OfficialLoganK', youtube: '', avatarColor: 'from-red-600 to-orange-700' },
-  { id: '16', name: 'Yannic Kilcher', twitter: 'ykilcher', youtube: 'UCZM8wN-uLbgz0t3tnuM47Rw', avatarColor: 'from-purple-500 to-indigo-600' },
-  { id: '17', name: 'Sam Altman', twitter: 'sama', youtube: '', avatarColor: 'from-gray-700 to-slate-900' },
-  { id: '18', name: 'Greg Brockman', twitter: 'gdb', youtube: '', avatarColor: 'from-indigo-700 to-purple-800' },
-  { id: '19', name: 'Jim Fan', twitter: 'DrJimFan', youtube: '', avatarColor: 'from-green-600 to-emerald-700' },
-  { id: '20', name: 'Rowan Cheung', twitter: 'rowancheung', youtube: '', avatarColor: 'from-purple-600 to-pink-600' },
+  { id: '6', name: 'Sebastian Raschka', twitter: 'rasbt', youtube: 'UC_CzsS7UTjcxJ-xXp1ftxtA', avatarColor: 'from-indigo-600 to-blue-700' },
+  { id: '7', name: 'Jim Fan', twitter: 'DrJimFan', youtube: 'UC4vr9HaKGCYLmmiCXnzac7A', avatarColor: 'from-green-600 to-emerald-700' },
+  { id: '8', name: 'Jeremy Howard', twitter: 'jeremyhoward', youtube: 'UCIfiSGCj1APhdEkVCGYXM_g', avatarColor: 'from-green-700 to-teal-800' },
+  { id: '9', name: 'Matt Wolfe', twitter: 'mattwolfe_', youtube: 'UChpleBmo18P08aKCIgti38g', avatarColor: 'from-yellow-600 to-orange-600' },
+  { id: '10', name: 'Two Minute Papers', twitter: 'karoly_zsolnai', youtube: 'UCbfYPyITQ-7l4upoX8nvctg', avatarColor: 'from-blue-500 to-cyan-600' },
+  { id: '11', name: 'Rowan Cheung', twitter: 'rowancheung', youtube: 'UC8LUzR34nNX8KH3Edd0un1g', avatarColor: 'from-purple-600 to-pink-600' },
+  { id: '12', name: 'Wes Roth', twitter: 'WesRothMoney', youtube: 'UCqcbQf6yw5KzRoDDcZ_wBSw', avatarColor: 'from-teal-600 to-cyan-700' },
+  { id: '13', name: 'Allie K. Miller', twitter: 'alliekmiller', youtube: 'UCTVXt1spq1Vm4K-SyhS5KAQ', avatarColor: 'from-pink-600 to-rose-700' },
+  { id: '14', name: 'Dr. Alan Thompson', twitter: '', youtube: 'UC00DrQVoCf9Liv4D0KV0rGw', avatarColor: 'from-purple-700 to-indigo-800' },
+  { id: '15', name: 'Logan Kilpatrick', twitter: 'OfficialLoganK', youtube: 'UCAZlsFFzPjkGamdPIse4olQ', avatarColor: 'from-red-600 to-orange-700' },
+  { id: '16', name: 'Yannic Kilcher', twitter: 'ykilcher', youtube: 'UCZHmQk67mSJgfCCTn7xBfew', avatarColor: 'from-purple-500 to-indigo-600' },
+  { id: '17', name: 'Hugging Face', twitter: 'huggingface', youtube: 'UCHlNU7kIZhRgSbhHvFoy72w', avatarColor: 'from-yellow-500 to-orange-600' },
+  { id: '18', name: 'DeepLearning.AI', twitter: 'deeplearningai_', youtube: 'UCcIXc5mJsHVYTZR1maL5l9w', avatarColor: 'from-emerald-600 to-teal-700' },
+  { id: '19', name: 'Marques Brownlee', twitter: 'MKBHD', youtube: 'UCBJycsmduvYEL83R_U4JriQ', avatarColor: 'from-gray-600 to-gray-800' },
+  { id: '20', name: 'Google DeepMind', twitter: 'GoogleDeepMind', youtube: 'UCP7jMXSY2xbc3KCAE0MHQ-A', avatarColor: 'from-blue-600 to-indigo-800' },
 ];
 
 // ── API Functions ──────────────────────────────────────────────────────
