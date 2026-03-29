@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, BookOpen, CheckCircle2, Clock, Plus, Search,
   TrendingUp, MoreVertical, ChevronRight, BrainCircuit, Code2,
@@ -6,6 +6,7 @@ import {
   Twitter, ChevronDown, ChevronUp, Flame, Zap, X,
   Home, Bot, User, Terminal, Bell, Settings, Sparkles,
   ArrowLeft, HelpCircle, Globe2, FileText, Quote, MessageSquare,
+  RefreshCw, Loader2, AlertCircle, Rss,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -14,6 +15,9 @@ import { twMerge } from 'tailwind-merge';
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// ── Config ──────────────────────────────────────────────────────────────
+const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || '';
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface Resource {
@@ -41,46 +45,98 @@ interface AIMaster {
   avatar: string; avatarColor: string;
   role: string; company: string; followers: string;
   tags: string[]; bio: string;
-  youtubeChannel?: string; twitterHandle?: string;
+  youtubeChannelId?: string;
+  twitterHandle?: string;
   videos: YoutubeVideo[];
   posts: XPost[];
+  loadingVideos?: boolean;
+  loadingPosts?: boolean;
+  errorVideos?: string | null;
+  errorPosts?: string | null;
 }
 
 type Page = 'dashboard' | 'resources' | 'masters' | 'progress' | 'datasets' | 'projects';
 
-// ── Static Data ─────────────────────────────────────────────────────────
-const INITIAL_RESOURCES: Resource[] = [
-  { id:'1', title:'Attention Is All You Need', category:'Fundamentals', status:'Completed', rating:5, lastAccessed:'2024-03-25', description:'The seminal paper introducing the Transformer architecture.', stage:'基础', links:[{url:'https://arxiv.org/abs/1706.03762', type:'Paper'}] },
-  { id:'2', title:'Deep Learning Specialization', category:'Fundamentals', status:'In Progress', rating:4, lastAccessed:'2024-03-27', description:'Comprehensive series of courses by Andrew Ng.', stage:'基础', links:[{url:'https://www.coursera.org/learn/neural-networks-deep-learning', type:'Course'}] },
-  { id:'3', title:'Large Language Models at Scale', category:'NLP', status:'Not Started', rating:0, lastAccessed:'-', description:'Advanced techniques for training and deploying LLMs.', stage:'进阶', links:[] },
-  { id:'4', title:'AI Ethics and Governance', category:'Ethics', status:'In Progress', rating:3, lastAccessed:'2024-03-20', description:'Understanding the societal impact of AI systems.', stage:'高级', links:[] },
-  { id:'5', title:'PyTorch Deep Learning', category:'Fundamentals', status:'Not Started', rating:0, lastAccessed:'-', description:'Master PyTorch framework for neural network development.', stage:'基础', links:[] },
-  { id:'6', title:'Computer Vision Fundamentals', category:'Computer Vision', status:'Not Started', rating:0, lastAccessed:'-', description:'Learn CNN, object detection, and image segmentation.', stage:'进阶', links:[] },
-  { id:'7', title:'MLOps Essentials', category:'MLOps', status:'Not Started', rating:0, lastAccessed:'-', description:'Production-ready machine learning systems.', stage:'高级', links:[] },
-  { id:'8', title:'Reinforcement Learning', category:'NLP', status:'Not Started', rating:0, lastAccessed:'-', description:'Deep Q-learning, policy gradients, and RLHF.', stage:'高级', links:[] },
-];
-
+// ── AI Masters with Channel IDs ─────────────────────────────────────────
 const AI_MASTERS: AIMaster[] = [
-  // ──────────────────────────────────────────────────────────────────────────
-  // X (Twitter) 平台:行业领袖与即时资讯 (11位)
-  // ──────────────────────────────────────────────────────────────────────────
+  // YouTube 频道
   {
     id:'andrej', name:'Andrej Karpathy', handle:'@karpathy',
     avatar:'AK', avatarColor:'from-orange-500 to-red-600',
     role:'前特斯拉AI负责人', company:'Tesla / OpenAI',
     followers:'890K', tags:['LLMs','Neural Nets','PyTorch'],
     bio:'前特斯拉AI负责人,顶级AI导师。Building neural networks from scratch, explaining AI fundamentals with unmatched clarity.',
-    youtubeChannel:'https://www.youtube.com/@AndrejKarpathy',
+    youtubeChannelId:'UCXUPKJOoM5L6O9S5JFZIkQw',
     twitterHandle:'karpathy',
-    videos:[
-      { id:'VMj-3S1tku0', title:'Neural Networks: Zero to Hero', duration:'2:25:43', views:'1.2M', publishedAt:'2022-08-17', thumbnail:'https://img.youtube.com/vi/VMj-3S1tku0/maxresdefault.jpg' },
-      { id:'kCc8FmEb1nY', title:"Let's build GPT", duration:'1:56:22', views:'3.8M', publishedAt:'2023-01-17', thumbnail:'https://img.youtube.com/vi/kCc8FmEb1nY/maxresdefault.jpg' },
-    ],
-    posts:[
-      { id:'1', content:'Training neural networks is 90% debugging and 10% understanding what went wrong.', likes:'12.3K', retweets:'2.1K', publishedAt:'2024-03-15', url:'https://twitter.com/karpathy/status/1' },
-      { id:'2', content:'The best way to understand deep learning is to implement everything from scratch.', likes:'18.5K', retweets:'3.2K', publishedAt:'2024-03-10', url:'https://twitter.com/karpathy/status/2' },
-    ],
+    videos:[], posts:[],
   },
+  {
+    id:'lex', name:'Lex Fridman', handle:'@lexfridman',
+    avatar:'LF', avatarColor:'from-gray-600 to-gray-900',
+    role:'AI研究者 & 播客主持人', company:'MIT / Independent',
+    followers:'4.1M', tags:['Interviews','Deep Learning','Philosophy'],
+    bio:'知名AI访谈主持人,深度对话领袖。',
+    youtubeChannelId:'UCSHZxQ5L7IuvZQqS9T9Carg',
+    twitterHandle:'lexfridman',
+    videos:[], posts:[],
+  },
+  {
+    id:'twominute', name:'Two Minute Papers', handle:'@TwoMinutePapers',
+    avatar:'TM', avatarColor:'from-blue-500 to-cyan-600',
+    role:'AI研究传播者', company:'Independent',
+    followers:'1.7M', tags:['Research','AI News','Computer Vision'],
+    bio:'2分钟带你看懂最前沿AI论文。',
+    youtubeChannelId:'UCbfYPyIT5T46Z2R卫国自选区',
+    twitterHandle:'karoly_zsolnai',
+    videos:[], posts:[],
+  },
+  {
+    id:'matt-wolfe', name:'Matt Wolfe', handle:'@mreflow',
+    avatar:'MW', avatarColor:'from-yellow-600 to-orange-600',
+    role:'AI工具实测专家', company:'Independent',
+    followers:'850K', tags:['Tools Review','AI News','Practical'],
+    bio:'AI工具实测与每日新闻拆解。',
+    youtubeChannelId:'UCKl4w_DVJr-Q6KMhxvZHUpg',
+    videos:[], posts:[],
+  },
+  {
+    id:'wes-roth', name:'Wes Roth', handle:'@WesRoth',
+    avatar:'WR', avatarColor:'from-teal-600 to-cyan-700',
+    role:'AI产业分析师', company:'Independent',
+    followers:'420K', tags:['Industry Analysis','Future Trends','Deep Dives'],
+    bio:'深度分析AI产业格局与未来预测。',
+    youtubeChannelId:'UCcD8wn4K1cXoO0NlA0V6H4w',
+    videos:[], posts:[],
+  },
+  {
+    id:'sebastian', name:'Sebastian Raschka', handle:'@SebastianRaschka',
+    avatar:'SR', avatarColor:'from-indigo-600 to-blue-700',
+    role:'LLM架构专家', company:'Independent / Lightning AI',
+    followers:'380K', tags:['LLM','Open Source','Architecture'],
+    bio:'硬核开源模型与LLM架构教学。',
+    youtubeChannelId:'UCXUPKJOoM5L6O9S5JFZIkQw',
+    videos:[], posts:[],
+  },
+  {
+    id:'jeremy', name:'Jeremy Howard', handle:'@howardjeremy',
+    avatar:'JH', avatarColor:'from-green-700 to-teal-800',
+    role:'fast.ai创始人', company:'fast.ai',
+    followers:'520K', tags:['Practical ML','Education','PyTorch'],
+    bio:'fast.ai创始人,实战派AI大师。',
+    youtubeChannelId:'UC7-c08hMUjF-4Bj9U9SjQSQ',
+    videos:[], posts:[],
+  },
+  {
+    id:'yannic', name:'Yannic Kilcher', handle:'@ykilcher',
+    avatar:'YK', avatarColor:'from-purple-500 to-indigo-600',
+    role:'AI研究者 & 教育家', company:'Independent',
+    followers:'470K', tags:['Papers','Research','Deep Learning'],
+    bio:'Deep dives into the latest AI research papers.',
+    youtubeChannelId:'UCZM8wN-uLbgz0t3tnuM47Rw',
+    twitterHandle:'ykilcher',
+    videos:[], posts:[],
+  },
+  // X/Twitter 为主
   {
     id:'andrew-ng', name:'Andrew Ng (吴恩达)', handle:'@AndrewYNg',
     avatar:'AN', avatarColor:'from-blue-600 to-indigo-700',
@@ -88,62 +144,7 @@ const AI_MASTERS: AIMaster[] = [
     followers:'1.1M', tags:['AI Education','Deep Learning','Coursera'],
     bio:'AI教育泰斗,DeepLearning.ai创始人。全球最知名的AI教育者,开创了在线AI教育的先河。',
     twitterHandle:'AndrewYNg',
-    videos:[],
-    posts:[
-      { id:'1', content:'AI is the new electricity. It will transform every industry.', likes:'25.6K', retweets:'5.2K', publishedAt:'2024-03-20', url:'https://twitter.com/AndrewYNg/status/1' },
-      { id:'2', content:'The best way to learn AI: Take courses, build projects, contribute to open source, teach others.', likes:'32.1K', retweets:'6.8K', publishedAt:'2024-03-12', url:'https://twitter.com/AndrewYNg/status/2' },
-    ],
-  },
-  {
-    id:'ilya', name:'Ilya Sutskever', handle:'@ilyasut',
-    avatar:'IS', avatarColor:'from-emerald-600 to-teal-700',
-    role:'OpenAI联合创始人', company:'OpenAI (前首席科学家)',
-    followers:'320K', tags:['Deep Learning','GPT','Research'],
-    bio:'OpenAI联合创始人,前首席科学家。深度学习领域的先驱者之一。',
-    twitterHandle:'ilyasut',
-    videos:[],
-    posts:[
-      { id:'1', content:'The future of AI is about building systems that can genuinely understand and reason.', likes:'15.2K', retweets:'2.8K', publishedAt:'2024-03-18', url:'https://twitter.com/ilyasut/status/1' },
-      { id:'2', content:'The compression hypothesis: intelligence is compression.', likes:'28.3K', retweets:'5.9K', publishedAt:'2024-02-28', url:'https://twitter.com/ilyasut/status/2' },
-    ],
-  },
-  {
-    id:'jim-fan', name:'Jim Fan', handle:'@DrJimFan',
-    avatar:'JF', avatarColor:'from-green-600 to-emerald-700',
-    role:'NVIDIA资深科学家', company:'NVIDIA',
-    followers:'280K', tags:['具身智能','Robotics','AGI'],
-    bio:'NVIDIA资深科学家,通用具身智能专家。',
-    twitterHandle:'DrJimFan',
-    videos:[],
-    posts:[
-      { id:'1', content:'The path to AGI goes through embodied AI.', likes:'19.4K', retweets:'3.6K', publishedAt:'2024-03-22', url:'https://twitter.com/DrJimFan/status/1' },
-    ],
-  },
-  {
-    id:'rowan', name:'Rowan Cheung', handle:'@rowancheung',
-    avatar:'RC', avatarColor:'from-purple-600 to-pink-600',
-    role:'AI资讯专家', company:'The Rundown AI',
-    followers:'560K', tags:['AI News','Trends','Tools'],
-    bio:'The Rundown AI创始人,每日为50万+订阅者提供最新AI动态。',
-    twitterHandle:'rowancheung',
-    videos:[],
-    posts:[
-      { id:'1', content:'Google just announced Gemini 1.5 with 1M token context window.', likes:'45.2K', retweets:'8.7K', publishedAt:'2024-03-21', url:'https://twitter.com/rowancheung/status/1' },
-      { id:'2', content:'Claude 3 beats GPT-4. Sora video generation. Figure 01 humanoid robot.', likes:'52.8K', retweets:'11.3K', publishedAt:'2024-03-16', url:'https://twitter.com/rowancheung/status/2' },
-    ],
-  },
-  {
-    id:'yann', name:'Yann LeCun', handle:'@ylecun',
-    avatar:'YL', avatarColor:'from-blue-700 to-cyan-800',
-    role:'Meta首席AI科学家', company:'Meta AI',
-    followers:'680K', tags:['Computer Vision','CNN','Turing Award'],
-    bio:'Meta首席AI科学家,图灵奖得主。卷积神经网络(CNN)之父。',
-    twitterHandle:'ylecun',
-    videos:[],
-    posts:[
-      { id:'1', content:'Auto-regressive LLMs are doomed. The future is in joint embedding architectures.', likes:'31.5K', retweets:'6.8K', publishedAt:'2024-03-19', url:'https://twitter.com/ylecun/status/1' },
-      { id:'2', content:'Open source AI is essential for safety and progress.', likes:'42.7K', retweets:'9.1K', publishedAt:'2024-03-07', url:'https://twitter.com/ylecun/status/2' },
-    ],
+    videos:[], posts:[],
   },
   {
     id:'sam-altman', name:'Sam Altman', handle:'@sama',
@@ -152,190 +153,153 @@ const AI_MASTERS: AIMaster[] = [
     followers:'3.2M', tags:['OpenAI','ChatGPT','AGI'],
     bio:'OpenAI首席执行官。领导开发ChatGPT和GPT系列模型。',
     twitterHandle:'sama',
-    videos:[],
-    posts:[
-      { id:'1', content:'gpt-5 is going to be a lot better. We\'re pushing the boundaries.', likes:'89.4K', retweets:'15.2K', publishedAt:'2024-03-20', url:'https://twitter.com/sama/status/1' },
-    ],
+    videos:[], posts:[],
   },
   {
-    id:'greg', name:'Greg Brockman', handle:'@gdb',
-    avatar:'GB', avatarColor:'from-indigo-700 to-purple-800',
-    role:'OpenAI总裁', company:'OpenAI',
-    followers:'280K', tags:['Engineering','OpenAI','Product'],
-    bio:'OpenAI总裁,顶尖工程专家。',
-    twitterHandle:'gdb',
-    videos:[],
-    posts:[
-      { id:'1', content:'Shipping GPT-4 Turbo with vision was one of the most complex engineering challenges.', likes:'18.6K', retweets:'3.2K', publishedAt:'2024-03-17', url:'https://twitter.com/gdb/status/1' },
-    ],
+    id:'yann-lecun', name:'Yann LeCun', handle:'@ylecun',
+    avatar:'YL', avatarColor:'from-blue-700 to-cyan-800',
+    role:'Meta首席AI科学家', company:'Meta AI',
+    followers:'680K', tags:['Computer Vision','CNN','Turing Award'],
+    bio:'Meta首席AI科学家,图灵奖得主。卷积神经网络(CNN)之父。',
+    twitterHandle:'ylecun',
+    videos:[], posts:[],
   },
   {
-    id:'lex', name:'Lex Fridman', handle:'@lexfridman',
-    avatar:'LF', avatarColor:'from-gray-600 to-gray-900',
-    role:'AI研究者 & 播客主持人', company:'MIT / Independent',
-    followers:'4.1M', tags:['Interviews','Deep Learning','Philosophy'],
-    bio:'知名AI访谈主持人,深度对话领袖。',
-    youtubeChannel:'https://www.youtube.com/@lexfridman',
-    twitterHandle:'lexfridman',
-    videos:[
-      { id:'UYkfOQ21Jh4', title:'Sam Altman: OpenAI CEO', duration:'1:37:28', views:'4.8M', publishedAt:'2023-03-25', thumbnail:'https://img.youtube.com/vi/UYkfOQ21Jh4/maxresdefault.jpg' },
-      { id:'Gfr50f6ZBvo', title:'Yann LeCun: Meta AI', duration:'3:05:55', views:'2.1M', publishedAt:'2023-06-05', thumbnail:'https://img.youtube.com/vi/Gfr50f6ZBvo/maxresdefault.jpg' },
-    ],
-    posts:[],
+    id:'ilya', name:'Ilya Sutskever', handle:'@ilyasut',
+    avatar:'IS', avatarColor:'from-emerald-600 to-teal-700',
+    role:'OpenAI联合创始人', company:'OpenAI (前首席科学家)',
+    followers:'320K', tags:['Deep Learning','GPT','Research'],
+    bio:'OpenAI联合创始人,前首席科学家。深度学习领域的先驱者之一。',
+    twitterHandle:'ilyasut',
+    videos:[], posts:[],
   },
   {
-    id:'logan', name:'Logan Kilpatrick', handle:'@OfficialLoganK',
-    avatar:'LK', avatarColor:'from-red-600 to-orange-700',
-    role:'Google AI产品负责人', company:'Google',
-    followers:'95K', tags:['Product','Developer Relations','AI Tools'],
-    bio:'Google AI产品负责人。',
-    twitterHandle:'OfficialLoganK',
-    videos:[],
-    posts:[
-      { id:'1', content:'Gemini API now supports 2M token context window.', likes:'12.4K', retweets:'2.3K', publishedAt:'2024-03-24', url:'https://twitter.com/OfficialLoganK/status/1' },
-    ],
+    id:'jim-fan', name:'Jim Fan', handle:'@DrJimFan',
+    avatar:'JF', avatarColor:'from-green-600 to-emerald-700',
+    role:'NVIDIA资深科学家', company:'NVIDIA',
+    followers:'280K', tags:['具身智能','Robotics','AGI'],
+    bio:'NVIDIA资深科学家,通用具身智能专家。',
+    twitterHandle:'DrJimFan',
+    videos:[], posts:[],
   },
   {
-    id:'allie', name:'Allie K. Miller', handle:'@alliekmiller',
-    avatar:'AM', avatarColor:'from-pink-600 to-rose-700',
-    role:'AI商业化专家', company:'Independent',
-    followers:'210K', tags:['Enterprise AI','Business','Strategy'],
-    bio:'AI商业化与企业级应用专家。',
-    twitterHandle:'alliekmiller',
-    videos:[],
-    posts:[
-      { id:'1', content:'Enterprise AI adoption is accelerating. 70% of Fortune 500 companies now have active AI initiatives.', likes:'16.9K', retweets:'3.4K', publishedAt:'2024-03-23', url:'https://twitter.com/alliekmiller/status/1' },
-    ],
-  },
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // YouTube 平台:深度讲解与实测 (9位)
-  // ──────────────────────────────────────────────────────────────────────────
-  {
-    id:'twominute', name:'Two Minute Papers', handle:'@TwoMinutePapers',
-    avatar:'TM', avatarColor:'from-blue-500 to-cyan-600',
-    role:'AI研究传播者', company:'Independent',
-    followers:'1.7M', tags:['Research','AI News','Computer Vision'],
-    bio:'2分钟带你看懂最前沿AI论文。',
-    youtubeChannel:'https://www.youtube.com/@TwoMinutePapers',
-    twitterHandle:'karoly_zsolnai',
-    videos:[
-      { id:'aqPvBuGJVeQ', title:'Sora AI - OpenAI Text to Video', duration:'8:42', views:'2.1M', publishedAt:'2024-02-15', thumbnail:'https://img.youtube.com/vi/aqPvBuGJVeQ/maxresdefault.jpg' },
-      { id:'hfIUstzHs9A', title:'ChatGPT - Explained!', duration:'11:23', views:'3.2M', publishedAt:'2022-12-05', thumbnail:'https://img.youtube.com/vi/hfIUstzHs9A/maxresdefault.jpg' },
-    ],
-    posts:[],
-  },
-  {
-    id:'matt-wolfe', name:'Matt Wolfe', handle:'@mreflow',
-    avatar:'MW', avatarColor:'from-yellow-600 to-orange-600',
-    role:'AI工具实测专家', company:'Independent',
-    followers:'850K', tags:['Tools Review','AI News','Practical'],
-    bio:'AI工具实测与每日新闻拆解。',
-    youtubeChannel:'https://www.youtube.com/@mreflow',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'wes-roth', name:'Wes Roth', handle:'@WesRoth',
-    avatar:'WR', avatarColor:'from-teal-600 to-cyan-700',
-    role:'AI产业分析师', company:'Independent',
-    followers:'420K', tags:['Industry Analysis','Future Trends','Deep Dives'],
-    bio:'深度分析AI产业格局与未来预测。',
-    youtubeChannel:'https://www.youtube.com/@WesRoth',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'sebastian', name:'Sebastian Raschka', handle:'@SebastianRaschka',
-    avatar:'SR', avatarColor:'from-indigo-600 to-blue-700',
-    role:'LLM架构专家', company:'Independent / Lightning AI',
-    followers:'380K', tags:['LLM','Open Source','Architecture'],
-    bio:'硬核开源模型与LLM架构教学。',
-    youtubeChannel:'https://www.youtube.com/@SebastianRaschka',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'alan-thompson', name:'Dr. Alan D. Thompson', handle:'@DrAlanDThompson',
-    avatar:'AT', avatarColor:'from-purple-700 to-indigo-800',
-    role:'AGI研究者', company:'Independent',
-    followers:'290K', tags:['AGI','Model Testing','Benchmarks'],
-    bio:'AGI进度追踪与模型能力测评。',
-    youtubeChannel:'https://www.youtube.com/@DrAlanDThompson',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'jeremy', name:'Jeremy Howard', handle:'@howardjeremy',
-    avatar:'JH', avatarColor:'from-green-700 to-teal-800',
-    role:'fast.ai创始人', company:'fast.ai',
-    followers:'520K', tags:['Practical ML','Education','PyTorch'],
-    bio:'fast.ai创始人,实战派AI大师。',
-    youtubeChannel:'https://www.youtube.com/@howardjeremy',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'ai-explained', name:'AI Explained', handle:'@ai_explained_',
-    avatar:'AE', avatarColor:'from-red-700 to-pink-800',
-    role:'AI模型分析师', company:'Independent',
-    followers:'310K', tags:['Model Comparison','Benchmarks','Analysis'],
-    bio:'极其深入的模型能力对比分析。',
-    youtubeChannel:'https://www.youtube.com/@ai_explained_',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'arxiv', name:'Arxiv Insights', handle:'@ArxivInsights',
-    avatar:'AI', avatarColor:'from-cyan-700 to-blue-800',
-    role:'AI论文解读者', company:'Independent',
-    followers:'180K', tags:['Papers','Explanations','Algorithms'],
-    bio:'通俗易懂地解读复杂算法。',
-    youtubeChannel:'https://www.youtube.com/@ArxivInsights',
-    videos:[],
-    posts:[],
-  },
-  {
-    id:'sentdex', name:'Harrison Kinsley (Sentdex)', handle:'@sentdex',
-    avatar:'HK', avatarColor:'from-green-500 to-teal-600',
-    role:'Python & ML教育者', company:'Pythonprogramming.net',
-    followers:'1.3M', tags:['Python','Practical ML','Trading'],
-    bio:'Python/AI编程实战鼻祖级博主。',
-    youtubeChannel:'https://www.youtube.com/@sentdex',
-    twitterHandle:'Sentdex',
-    videos:[
-      { id:'WS0WXw-HKQU', title:'Neural Networks from Scratch in Python', duration:'45:23', views:'980K', publishedAt:'2020-06-01', thumbnail:'https://img.youtube.com/vi/WS0WXw-HKQU/maxresdefault.jpg' },
-    ],
-    posts:[],
-  },
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // 原工具中的独有大神 (保留)
-  // ──────────────────────────────────────────────────────────────────────────
-  {
-    id:'yannic', name:'Yannic Kilcher', handle:'@ykilcher',
-    avatar:'YK', avatarColor:'from-purple-500 to-indigo-600',
-    role:'AI研究者 & 教育家', company:'Independent',
-    followers:'470K', tags:['Papers','Research','Deep Learning'],
-    bio:'Deep dives into the latest AI research papers.',
-    youtubeChannel:'https://www.youtube.com/@YannicKilcher',
-    twitterHandle:'ykilcher',
-    videos:[
-      { id:'4NMfFN0Ax9Q', title:'GPT-4 Technical Report Walkthrough', duration:'38:12', views:'345K', publishedAt:'2023-03-15', thumbnail:'https://img.youtube.com/vi/4NMfFN0Ax9Q/maxresdefault.jpg' },
-      { id:'U0s0f995w14', title:'Attention Is All You Need', duration:'1:22:15', views:'1.1M', publishedAt:'2021-01-20', thumbnail:'https://img.youtube.com/vi/U0s0f995w14/maxresdefault.jpg' },
-    ],
-    posts:[],
+    id:'rowan', name:'Rowan Cheung', handle:'@rowancheung',
+    avatar:'RC', avatarColor:'from-purple-600 to-pink-600',
+    role:'AI资讯专家', company:'The Rundown AI',
+    followers:'560K', tags:['AI News','Trends','Tools'],
+    bio:'The Rundown AI创始人,每日为50万+订阅者提供最新AI动态。',
+    twitterHandle:'rowancheung',
+    videos:[], posts:[],
   },
 ];
+
+// ── YouTube API ──────────────────────────────────────────────────────────────
+async function fetchYouTubeVideos(channelId: string): Promise<YoutubeVideo[]> {
+  if (!YOUTUBE_API_KEY) {
+    console.warn('YouTube API key not configured');
+    return [];
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?key=${YOUTUBE_API_KEY}&channelId=${channelId}&part=snippet,id&order=date&maxResults=6&type=video`
+    );
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+
+    return (data.items || []).map((item: any) => ({
+      id: item.id.videoId || item.id,
+      title: item.snippet.title,
+      duration: '',
+      views: '',
+      publishedAt: new Date(item.snippet.publishedAt).toLocaleDateString('zh-CN'),
+      thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || '',
+    }));
+  } catch (e) {
+    console.error('YouTube API error:', e);
+    return [];
+  }
+}
+
+// ── X (Twitter) RSS via Nitter ──────────────────────────────────────────────
+async function fetchXRss(handle: string): Promise<XPost[]> {
+  try {
+    // 使用 nitter.net RSS feed
+    const response = await fetch(`https://nitter.net/${handle}/rss`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const text = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+    const items = doc.querySelectorAll('item');
+
+    return Array.from(items).slice(0, 5).map((item, idx) => {
+      const title = item.querySelector('title')?.textContent || '';
+      const pubDate = item.querySelector('pubDate')?.textContent || '';
+      const link = item.querySelector('link')?.textContent || '';
+
+      // 从标题提取内容（去掉 "@handle - " 前缀）
+      const content = title.replace(new RegExp(`^@${handle}\\s*[-:]?\\s*`), '');
+
+      return {
+        id: String(idx),
+        content,
+        likes: '',
+        retweets: '',
+        publishedAt: pubDate ? new Date(pubDate).toLocaleDateString('zh-CN') : '',
+        url: link || `https://twitter.com/${handle}`,
+      };
+    });
+  } catch (e) {
+    console.error('X RSS error:', e);
+    return [];
+  }
+}
 
 // ── App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState<Page>('dashboard');
   const [resources, setResources] = useState<Resource[]>(INITIAL_RESOURCES);
+  const [masters, setMasters] = useState<AIMaster[]>(AI_MASTERS);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all'|'in-progress'|'completed'>('all');
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [playingVideo, setPlayingVideo] = useState<{videoId:string;title:string}|null>(null);
+
+  const fetchMasterData = useCallback(async (masterId: string) => {
+    const master = AI_MASTERS.find(m => m.id === masterId);
+    if (!master) return;
+
+    // 获取 YouTube 视频
+    if (master.youtubeChannelId && !masters.find(m => m.id === masterId)?.videos.length) {
+      setMasters(prev => prev.map(m =>
+        m.id === masterId ? { ...m, loadingVideos: true } : m
+      ));
+      const videos = await fetchYouTubeVideos(master.youtubeChannelId);
+      setMasters(prev => prev.map(m =>
+        m.id === masterId ? { ...m, videos, loadingVideos: false, errorVideos: videos.length === 0 ? '暂无视频' : null } : m
+      ));
+    }
+
+    // 获取 X RSS
+    if (master.twitterHandle && !masters.find(m => m.id === masterId)?.posts.length) {
+      setMasters(prev => prev.map(m =>
+        m.id === masterId ? { ...m, loadingPosts: true } : m
+      ));
+      const posts = await fetchXRss(master.twitterHandle);
+      setMasters(prev => prev.map(m =>
+        m.id === masterId ? { ...m, posts, loadingPosts: false, errorPosts: posts.length === 0 ? '暂无推文' : null } : m
+      ));
+    }
+  }, [masters]);
+
+  useEffect(() => {
+    if (expandedId) {
+      fetchMasterData(expandedId);
+    }
+  }, [expandedId]);
 
   const filteredResources = resources.filter(res => {
     const matchesSearch = res.title.toLowerCase().includes(searchQuery.toLowerCase()) || res.category.toLowerCase().includes(searchQuery.toLowerCase());
@@ -365,7 +329,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-[#1A1A1A] font-sans">
-      {/* Sidebar */}
       <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 p-6 hidden lg:flex flex-col z-20">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><BrainCircuit size={24} /></div>
@@ -393,65 +356,19 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main */}
       <main className="lg:ml-64 p-4 md:p-8 lg:p-12">
         <AnimatePresence mode="wait">
-          {page === 'dashboard' && (
-            <DashboardPage
-              key="dashboard"
-              stats={stats}
-              resources={resources}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              filteredResources={filteredResources}
-              onToggleStatus={toggleResourceStatus}
-            />
-          )}
-          {page === 'resources' && (
-            <ResourcesPage
-              key="resources"
-              resources={resources}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              filteredResources={filteredResources}
-              onToggleStatus={toggleResourceStatus}
-            />
-          )}
-          {page === 'masters' && (
-            <motion.div key="masters" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.2}}>
-              <AIMastersPage
-                expandedId={expandedId}
-                setExpandedId={setExpandedId}
-                playingVideo={playingVideo}
-                setPlayingVideo={setPlayingVideo}
-              />
-            </motion.div>
-          )}
-          {page === 'progress' && (
-            <ProgressPage key="progress" stats={stats} resources={resources} />
-          )}
-          {page === 'datasets' && (
-            <DatasetsPage key="datasets" />
-          )}
-          {page === 'projects' && (
-            <ProjectsPage key="projects" />
-          )}
+          {page === 'dashboard' && <DashboardPage key="dashboard" stats={stats} resources={resources} searchQuery={searchQuery} setSearchQuery={setSearchQuery} activeTab={activeTab} setActiveTab={setActiveTab} filteredResources={filteredResources} onToggleStatus={toggleResourceStatus} />}
+          {page === 'resources' && <ResourcesPage key="resources" resources={resources} searchQuery={searchQuery} setSearchQuery={setSearchQuery} activeTab={activeTab} setActiveTab={setActiveTab} filteredResources={filteredResources} onToggleStatus={toggleResourceStatus} />}
+          {page === 'masters' && <motion.div key="masters" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.2}}><AIMastersPage masters={masters} expandedId={expandedId} setExpandedId={setExpandedId} playingVideo={playingVideo} setPlayingVideo={setPlayingVideo} /></motion.div>}
+          {page === 'progress' && <ProgressPage key="progress" stats={stats} resources={resources} />}
+          {page === 'datasets' && <DatasetsPage key="datasets" />}
+          {page === 'projects' && <ProjectsPage key="projects" />}
         </AnimatePresence>
       </main>
 
-      {/* Video Modal */}
       <AnimatePresence>
-        {playingVideo && (
-          <VideoModal
-            videoId={playingVideo.videoId}
-            title={playingVideo.title}
-            onClose={() => setPlayingVideo(null)}
-          />
-        )}
+        {playingVideo && <VideoModal videoId={playingVideo.videoId} title={playingVideo.title} onClose={() => setPlayingVideo(null)} />}
       </AnimatePresence>
     </div>
   );
@@ -477,18 +394,13 @@ function DashboardPage({ stats, resources, searchQuery, setSearchQuery, activeTa
         </button>
       </header>
 
-      {/* Current Learning Card */}
       <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 text-white mb-10 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div>
             <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full mb-4 inline-block">{currentItem?.stage || '基础'}</span>
             <h3 className="text-2xl font-bold mb-2">{currentItem?.title}</h3>
             <p className="text-white/80 max-w-lg">{currentItem?.description}</p>
-            {currentItem?.links?.[0] && (
-              <a href={currentItem.links[0].url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-colors">
-                <ExternalLink size={14}/>打开资源
-              </a>
-            )}
+            {currentItem?.links?.[0] && <a href={currentItem.links[0].url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl transition-colors"><ExternalLink size={14}/>打开资源</a>}
           </div>
           <div className="relative w-24 h-24">
             <svg className="w-full h-full transform -rotate-90">
@@ -500,7 +412,6 @@ function DashboardPage({ stats, resources, searchQuery, setSearchQuery, activeTa
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <StatCard label="总资源数" value={stats.total} icon={<BookOpen className="text-blue-600"/>}/>
         <StatCard label="学习中" value={stats.inProgress} icon={<Clock className="text-amber-600"/>}/>
@@ -508,7 +419,6 @@ function DashboardPage({ stats, resources, searchQuery, setSearchQuery, activeTa
         <StatCard label="平均评分" value={stats.avgRating} icon={<Star className="text-indigo-600"/>}/>
       </div>
 
-      {/* Resources Table */}
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-xl">
@@ -575,7 +485,6 @@ function ResourcesPage({ resources, searchQuery, setSearchQuery, activeTab, setA
   onToggleStatus: (id: string) => void;
 }) {
   const categories = Array.from(new Set(resources.map(r => r.category)));
-  const stages = Array.from(new Set(resources.map(r => r.stage || '基础')));
 
   return (
     <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.2}}>
@@ -586,7 +495,6 @@ function ResourcesPage({ resources, searchQuery, setSearchQuery, activeTab, setA
         </div>
       </header>
 
-      {/* Filters */}
       <div className="bg-white rounded-3xl border border-gray-200 p-6 mb-8">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
@@ -606,7 +514,6 @@ function ResourcesPage({ resources, searchQuery, setSearchQuery, activeTab, setA
         </div>
       </div>
 
-      {/* Resource Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredResources.map(res => (
           <div key={res.id} className="bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
@@ -632,13 +539,14 @@ function ResourcesPage({ resources, searchQuery, setSearchQuery, activeTab, setA
 }
 
 // ── AI Masters Page ─────────────────────────────────────────────────────
-function AIMastersPage({ expandedId, setExpandedId, playingVideo, setPlayingVideo }: {
+function AIMastersPage({ masters, expandedId, setExpandedId, playingVideo, setPlayingVideo }: {
+  masters: AIMaster[];
   expandedId: string | null; setExpandedId: (s: string | null) => void;
   playingVideo: {videoId:string;title:string} | null; setPlayingVideo: (s: any) => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = AI_MASTERS.filter(m =>
+  const filtered = masters.filter(m =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     m.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -651,7 +559,7 @@ function AIMastersPage({ expandedId, setExpandedId, playingVideo, setPlayingVide
             <Flame size={22} className="text-orange-500"/>
             <h2 className="text-3xl font-bold tracking-tight">AI 大神</h2>
           </div>
-          <p className="text-gray-500">关注顶尖 AI 研究者和教育者，点击展开查看精选内容</p>
+          <p className="text-gray-500">关注顶尖 AI 研究者和教育者，点击展开获取最新内容</p>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
@@ -661,13 +569,7 @@ function AIMastersPage({ expandedId, setExpandedId, playingVideo, setPlayingVide
 
       <div className="space-y-4">
         {filtered.map(master => (
-          <MasterCard
-            key={master.id}
-            master={master}
-            isExpanded={expandedId === master.id}
-            onToggle={() => setExpandedId(expandedId === master.id ? null : master.id)}
-            onPlayVideo={(videoId, title) => setPlayingVideo({ videoId, title })}
-          />
+          <MasterCard key={master.id} master={master} isExpanded={expandedId === master.id} onToggle={() => setExpandedId(expandedId === master.id ? null : master.id)} onPlayVideo={(videoId, title) => setPlayingVideo({ videoId, title })} />
         ))}
       </div>
     </div>
@@ -702,19 +604,17 @@ function MasterCard({ master, isExpanded, onToggle, onPlayVideo }: {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {master.youtubeChannel && (
-              <a href={master.youtubeChannel} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors">
+            {master.youtubeChannelId && (
+              <span className="p-2 rounded-lg bg-red-50 text-red-600" title="YouTube">
                 <Youtube size={18}/>
-              </a>
+              </span>
             )}
             {master.twitterHandle && (
-              <a href={`https://twitter.com/${master.twitterHandle}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-2 rounded-lg hover:bg-sky-50 text-gray-400 hover:text-sky-600 transition-colors">
-                <Twitter size={18}/>
-              </a>
+              <span className="p-2 rounded-lg bg-sky-50 text-sky-600" title="X/Twitter">
+                <Rss size={18}/>
+              </span>
             )}
-            <div className="p-2 text-gray-400 ml-1">
-              {isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
-            </div>
+            <div className="p-2 text-gray-400 ml-1">{isExpanded ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
           </div>
         </div>
       </div>
@@ -725,40 +625,69 @@ function MasterCard({ master, isExpanded, onToggle, onPlayVideo }: {
             <div className="px-5 pb-6 border-t border-gray-100">
               <p className="text-sm text-gray-600 leading-relaxed mt-4 mb-5">{master.bio}</p>
 
-              {master.videos.length > 0 && (
+              {/* YouTube Videos */}
+              {master.youtubeChannelId && (
                 <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Youtube size={16} className="text-red-500"/>
-                    <h4 className="font-semibold text-sm text-gray-800">精选视频</h4>
-                    <span className="text-xs text-gray-400">{master.videos.length} 个</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
-                    {master.videos.map(video => (
-                      <VideoCard key={video.id} video={video} onPlay={() => onPlayVideo(video.id, video.title)}/>
-                    ))}
-                  </div>
+                  {master.loadingVideos ? (
+                    <div className="flex items-center gap-3 text-gray-500 py-4">
+                      <Loader2 size={20} className="animate-spin" />
+                      <span className="text-sm">获取YouTube视频中...</span>
+                    </div>
+                  ) : master.videos.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Youtube size={16} className="text-red-500"/>
+                        <h4 className="font-semibold text-sm text-gray-800">最新视频</h4>
+                        <span className="text-xs text-gray-400">{master.videos.length} 个</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+                        {master.videos.map(video => (
+                          <VideoCard key={video.id} video={video} onPlay={() => onPlayVideo(video.id, video.title)}/>
+                        ))}
+                      </div>
+                    </>
+                  ) : !master.errorVideos ? null : (
+                    <div className="flex items-center gap-2 text-gray-400 py-4">
+                      <AlertCircle size={14} />
+                      <span className="text-sm">{master.errorVideos}</span>
+                    </div>
+                  )}
                 </>
               )}
 
-              {master.posts.length > 0 && (
+              {/* X/Twitter Posts */}
+              {master.twitterHandle && (
                 <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Twitter size={16} className="text-sky-500"/>
-                    <h4 className="font-semibold text-sm text-gray-800">热门推文</h4>
-                    <span className="text-xs text-gray-400">{master.posts.length} 条</span>
-                  </div>
-                  <div className="space-y-3">
-                    {master.posts.map(post => (
-                      <PostCard key={post.id} post={post}/>
-                    ))}
-                  </div>
+                  {master.loadingPosts ? (
+                    <div className="flex items-center gap-3 text-gray-500 py-4">
+                      <Loader2 size={20} className="animate-spin" />
+                      <span className="text-sm">获取X推文中...</span>
+                    </div>
+                  ) : master.posts.length > 0 ? (
+                    <>
+                      <div className="flex items-center gap-2 mb-4">
+                        <Rss size={16} className="text-sky-500"/>
+                        <h4 className="font-semibold text-sm text-gray-800">最新推文</h4>
+                        <span className="text-xs text-gray-400">{master.posts.length} 条</span>
+                        <a href={`https://twitter.com/${master.twitterHandle}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-indigo-600 hover:underline flex items-center gap-1">
+                          查看全部 <ExternalLink size={12}/>
+                        </a>
+                      </div>
+                      <div className="space-y-3">
+                        {master.posts.map(post => <PostCard key={post.id} post={post}/>)}
+                      </div>
+                    </>
+                  ) : !master.errorPosts ? null : (
+                    <div className="flex items-center gap-2 text-gray-400 py-4">
+                      <AlertCircle size={14} />
+                      <span className="text-sm">{master.errorPosts}</span>
+                    </div>
+                  )}
                 </>
               )}
 
-              {master.videos.length === 0 && master.posts.length === 0 && (
-                <div className="text-center py-8 text-gray-400">
-                  <p className="text-sm">暂无精选内容</p>
-                </div>
+              {!master.youtubeChannelId && !master.twitterHandle && (
+                <div className="text-center py-8 text-gray-400"><p className="text-sm">暂无数据</p></div>
               )}
             </div>
           </motion.div>
@@ -774,7 +703,7 @@ function VideoCard({ video, onPlay }: { video: YoutubeVideo; onPlay: () => void 
   return (
     <div className="group rounded-xl overflow-hidden border border-gray-100 cursor-pointer hover:border-indigo-200 hover:shadow-md transition-all" onClick={onPlay}>
       <div className="relative aspect-video bg-gray-100">
-        {!imgError ? (
+        {!imgError && video.thumbnail ? (
           <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" onError={() => setImgError(true)}/>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
@@ -786,12 +715,12 @@ function VideoCard({ video, onPlay }: { video: YoutubeVideo; onPlay: () => void 
             <Play size={20} className="text-gray-900 ml-0.5" fill="currentColor"/>
           </div>
         </div>
-        <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-mono px-1.5 py-0.5 rounded">{video.duration}</span>
+        {video.duration && <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs font-mono px-1.5 py-0.5 rounded">{video.duration}</span>}
       </div>
       <div className="p-3">
         <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug mb-2">{video.title}</p>
         <div className="flex items-center justify-between text-xs text-gray-400">
-          <span>{video.views} 观看</span><span>{video.publishedAt}</span>
+          <span>{video.views || '最新'}</span><span>{video.publishedAt}</span>
         </div>
       </div>
     </div>
@@ -804,20 +733,10 @@ function PostCard({ post }: { post: XPost }) {
     <a href={post.url} target="_blank" rel="noopener noreferrer" className="block bg-white rounded-xl border border-gray-100 p-4 hover:border-sky-200 hover:shadow-md transition-all group">
       <p className="text-sm text-gray-700 leading-relaxed mb-3">{post.content}</p>
       <div className="flex items-center justify-between text-xs text-gray-400">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/></svg>
-            <span>{post.likes}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/></svg>
-            <span>{post.retweets}</span>
-          </div>
-        </div>
         <span>{post.publishedAt}</span>
-      </div>
-      <div className="mt-2 text-sky-600 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-        在 X 上查看 <ExternalLink size={12}/>
+        <div className="text-sky-600 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+          查看 <ExternalLink size={12}/>
+        </div>
       </div>
     </a>
   );
@@ -826,7 +745,6 @@ function PostCard({ post }: { post: XPost }) {
 // ── Progress Page ─────────────────────────────────────────────────────
 function ProgressPage({ stats, resources }: { stats: any; resources: Resource[] }) {
   const completedResources = resources.filter(r => r.status === 'Completed');
-  const inProgressResources = resources.filter(r => r.status === 'In Progress');
 
   return (
     <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.2}}>
@@ -1025,3 +943,15 @@ function TabButton({ children, active, onClick }: { children: React.ReactNode; a
     </button>
   );
 }
+
+// ── Static Data ─────────────────────────────────────────────────────────
+const INITIAL_RESOURCES: Resource[] = [
+  { id:'1', title:'Attention Is All You Need', category:'Fundamentals', status:'Completed', rating:5, lastAccessed:'2024-03-25', description:'The seminal paper introducing the Transformer architecture.', stage:'基础', links:[{url:'https://arxiv.org/abs/1706.03762', type:'Paper'}] },
+  { id:'2', title:'Deep Learning Specialization', category:'Fundamentals', status:'In Progress', rating:4, lastAccessed:'2024-03-27', description:'Comprehensive series of courses by Andrew Ng.', stage:'基础', links:[{url:'https://www.coursera.org/learn/neural-networks-deep-learning', type:'Course'}] },
+  { id:'3', title:'Large Language Models at Scale', category:'NLP', status:'Not Started', rating:0, lastAccessed:'-', description:'Advanced techniques for training and deploying LLMs.', stage:'进阶', links:[] },
+  { id:'4', title:'AI Ethics and Governance', category:'Ethics', status:'In Progress', rating:3, lastAccessed:'2024-03-20', description:'Understanding the societal impact of AI systems.', stage:'高级', links:[] },
+  { id:'5', title:'PyTorch Deep Learning', category:'Fundamentals', status:'Not Started', rating:0, lastAccessed:'-', description:'Master PyTorch framework for neural network development.', stage:'基础', links:[] },
+  { id:'6', title:'Computer Vision Fundamentals', category:'Computer Vision', status:'Not Started', rating:0, lastAccessed:'-', description:'Learn CNN, object detection, and image segmentation.', stage:'进阶', links:[] },
+  { id:'7', title:'MLOps Essentials', category:'MLOps', status:'Not Started', rating:0, lastAccessed:'-', description:'Production-ready machine learning systems.', stage:'高级', links:[] },
+  { id:'8', title:'Reinforcement Learning', category:'NLP', status:'Not Started', rating:0, lastAccessed:'-', description:'Deep Q-learning, policy gradients, and RLHF.', stage:'高级', links:[] },
+];
